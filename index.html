@@ -208,7 +208,7 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
           </div>
           <div class="row2">
             <label class="f" for="city">Місто<input type="text" id="city" autocomplete="address-level2"></label>
-            <label class="f" for="np">Відділення Нової пошти<input type="text" id="np" inputmode="numeric" placeholder="№"></label>
+            <label class="f" for="np">Відділення або поштомат НП<input type="text" id="np" placeholder="№ відділення або поштомату"></label>
           </div>
           <label class="f" for="note">Коментар (необов'язково)<textarea id="note" rows="2"></textarea></label>
           <label class="callme" for="callback"><input type="checkbox" id="callback"><span>Зателефонуйте мені, щоб уточнити замовлення</span></label>
@@ -382,7 +382,7 @@ renderCart();
 
 $("form").addEventListener("submit", async e=>{
   e.preventDefault();
-  const fields = {name:"ім'я", phone:"телефон", city:"місто", np:"відділення"};
+  const fields = {name:"ім'я", phone:"телефон", city:"місто", np:"відділення або поштомат"};
   const miss = [];
   for (const id in fields){
     const empty = !$(id).value.trim();
