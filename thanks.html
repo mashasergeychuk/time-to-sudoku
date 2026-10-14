@@ -39,25 +39,28 @@ function show(title, text, btn, href){
 }
 
 async function check(attempt){
-  if (!invoiceId){
-    show("Дякуємо за замовлення!", "Якщо оплата пройшла, ми скоро зв'яжемося з вами щодо доставки.");
+  // Перевіряємо за номером рахунку, а якщо його немає — за номером замовлення
+  const q = invoiceId ? "invoiceId=" + encodeURIComponent(invoiceId)
+          : orderId ? "order=" + encodeURIComponent(orderId) : "";
+  if (!q){
+    show("Дякуємо за замовлення!", "Очікуйте на відправку.");
     return;
   }
   try {
-    const r = await fetch("/.netlify/functions/invoice-status?invoiceId=" + encodeURIComponent(invoiceId));
+    const r = await fetch("/.netlify/functions/invoice-status?" + q);
     const { status } = await r.json();
     if (status === "success"){
       try { sessionStorage.removeItem("tts_invoice"); } catch(e) {}
-      show("Оплату отримано!", "Дякуємо! Ми надішлемо книжечки Новою поштою і повідомимо номер накладної.");
+      show("Оплату отримано!", "Дякую! Очікуйте на відправку.");
     } else if (status === "failure" || status === "expired" || status === "reversed"){
       show("Оплата не пройшла", "Гроші не списано. Спробуйте ще раз або оберіть накладений платіж.", "Повернутися до замовлення", "/#order");
     } else if (attempt < 6){
       setTimeout(()=>check(attempt+1), 2500);
     } else {
-      show("Оплата обробляється", "Банк ще підтверджує платіж. Ми побачимо його і зв'яжемося з вами.");
+      show("Дякуємо за замовлення!", "Очікуйте на відправку.");
     }
   } catch(e){
-    show("Дякуємо за замовлення!", "Не вдалося перевірити статус оплати, але ми побачимо платіж і зв'яжемося з вами.");
+    show("Дякуємо за замовлення!", "Очікуйте на відправку.");
   }
 }
 check(0);
