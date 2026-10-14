@@ -127,6 +127,9 @@ legend{font-weight:500;font-size:15px;margin-bottom:8px;padding:0}
 .ok h3{color:var(--cinnabar)}
 .ok p{margin:0}
 
+.terms{color:var(--muted)}
+.agree{font-size:14px;color:var(--muted);margin:0}
+.agree a{color:var(--muted)}
 .iglink{display:inline-flex;align-items:center;gap:8px;color:var(--cinnabar);font-weight:600;text-decoration:none;padding:8px 0}
 .iglink:hover{text-decoration:underline}
 .iglink svg{width:22px;height:22px}
@@ -211,6 +214,7 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
           <div class="total"><span>Разом</span><b><span id="total">0</span> ₴</b></div>
           <p class="msg" id="msg" role="alert"></p>
           <button class="btn" type="submit" id="submit">Оплатити</button>
+          <p class="agree">Оформлюючи замовлення, ви погоджуєтеся з <a href="oferta.html">умовами й офертою</a>.</p>
         </form>
         <div class="ok" id="ok" hidden>
           <h3>Дякуємо за замовлення!</h3>
@@ -224,7 +228,7 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
 
 <footer>
   <div class="wrap">
-    <span>time to sudoku · Київ</span>
+    <span>time to sudoku · Київ · <a class="terms" href="oferta.html">Умови й оферта</a></span>
     <a class="iglink" id="igLink" href="https://www.instagram.com/" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
       Instagram
