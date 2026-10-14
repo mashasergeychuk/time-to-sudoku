@@ -1,6 +1,10 @@
-// Створює рахунок у plata by mono і повертає посилання на сторінку оплати.
-// Ціни рахуються тут, на сервері, щоб їх не можна було підмінити в браузері.
-// Потрібна змінна середовища MONO_TOKEN (токен еквайрингу з web.monobank.ua).
+// Приймає замовлення з сайту:
+//  1) рахує суму на сервері (щоб її не можна було підмінити в браузері);
+//  2) записує замовлення в Google Таблицю;
+//  3) для оплати карткою створює рахунок у plata by mono і повертає посилання на оплату.
+// Змінні середовища: MONO_TOKEN, SHEET_URL, SHEET_SECRET.
+
+import { postToSheet } from "../lib/sheet.mjs";
 
 const PRICE = 370;      // грн за одну книжечку
 const SET_PRICE = 1000; // грн за набір №1 + №2 + №3
@@ -16,17 +20,17 @@ const json = (status, data) =>
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
 
+const clean = (v, max = 200) => String(v ?? "").trim().slice(0, max);
+
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "method" });
-
-  const token = process.env.MONO_TOKEN;
-  if (!token) return json(500, { error: "MONO_TOKEN is not set" });
 
   let body;
   try { body = await req.json(); } catch { return json(400, { error: "bad json" }); }
 
-  const orderId = String(body.orderId || "").slice(0, 40);
+  const orderId = clean(body.orderId, 40);
   if (!/^TTS-[0-9A-Z-]+$/.test(orderId)) return json(400, { error: "bad order id" });
+  const pay = body.pay === "cod" ? "cod" : "card";
 
   // Кількість кожної книжечки (1–20)
   const counts = { n1: 0, n2: 0, n3: 0 };
@@ -35,8 +39,7 @@ export default async (req) => {
     if (!(item.id in counts) || !(qty >= 1 && qty <= 20)) return json(400, { error: "bad item" });
     counts[item.id] += qty;
   }
-  const totalBooks = counts.n1 + counts.n2 + counts.n3;
-  if (!totalBooks) return json(400, { error: "empty cart" });
+  if (!(counts.n1 + counts.n2 + counts.n3)) return json(400, { error: "empty cart" });
 
   // Кожна трійка №1+№2+№3 іде як набір, решта поштучно
   const sets = Math.min(counts.n1, counts.n2, counts.n3);
@@ -58,9 +61,32 @@ export default async (req) => {
     }
   }
   const amount = basketOrder.reduce((s, i) => s + i.total, 0); // у копійках
+  const itemsText = basketOrder.map((i) => `${i.name} × ${i.qty}`).join("; ");
+  const email = clean(body.email, 120);
+
+  // Запис у таблицю. Якщо таблиця недоступна, замовлення все одно приймаємо.
+  try {
+    await postToSheet({
+      action: "add",
+      orderId,
+      status: pay === "card" ? "очікує оплату" : "накладений платіж",
+      total: amount / 100,
+      pay: pay === "card" ? "картка онлайн" : "накладений платіж",
+      items: itemsText,
+      name: clean(body.name), phone: clean(body.phone, 40), email,
+      city: clean(body.city), np: clean(body.np, 40), note: clean(body.note, 1000),
+      callback: Boolean(body.callback),
+    });
+  } catch (e) {
+    console.error("sheet add failed", e);
+  }
+
+  if (pay === "cod") return json(200, { ok: true });
+
+  const token = process.env.MONO_TOKEN;
+  if (!token) return json(500, { error: "MONO_TOKEN is not set" });
 
   const siteUrl = process.env.URL || new URL(req.url).origin;
-  const email = String(body.email || "").trim();
   const payload = {
     amount,
     ccy: 980,
@@ -71,6 +97,7 @@ export default async (req) => {
       ...(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { customerEmails: [email] } : {}),
     },
     redirectUrl: `${siteUrl}/thanks.html?order=${encodeURIComponent(orderId)}`,
+    webHookUrl: `${siteUrl}/.netlify/functions/mono-webhook`,
     validity: 3600,
   };
 

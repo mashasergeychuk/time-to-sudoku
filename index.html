@@ -115,6 +115,9 @@ form{display:grid;gap:14px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 fieldset{border:0;padding:0;margin:0;min-width:0}
 legend{font-weight:500;font-size:15px;margin-bottom:8px;padding:0}
+.callme{display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid var(--hair);border-radius:12px;cursor:pointer;font-weight:500;font-size:15px}
+.callme:has(input:checked){border-color:var(--cinnabar);background:var(--tint)}
+.callme input{accent-color:var(--cinnabar);width:18px;height:18px;margin:0;flex:none}
 .pay{display:grid;gap:8px}
 .pay label{display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid var(--hair);border-radius:12px;cursor:pointer;font-weight:500}
 .pay label:has(input:checked){border-color:var(--cinnabar);background:var(--tint)}
@@ -208,6 +211,7 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
             <label class="f" for="np">Відділення Нової пошти<input type="text" id="np" inputmode="numeric" placeholder="№"></label>
           </div>
           <label class="f" for="note">Коментар (необов'язково)<textarea id="note" rows="2"></textarea></label>
+          <label class="callme" for="callback"><input type="checkbox" id="callback"><span>Зателефонуйте мені, щоб уточнити замовлення</span></label>
           <fieldset class="pay">
             <legend>Спосіб оплати</legend>
             <label><input type="radio" name="pay" id="payCard" value="card" checked><span>Онлайн-оплата карткою, Google Pay або Apple Pay</span></label>
@@ -243,7 +247,7 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
 <form name="order" data-netlify="true" netlify-honeypot="bot-field" hidden>
   <input name="order_id"><input name="items"><input name="total"><input name="pay">
   <input name="name"><input name="phone"><input name="email"><input name="city"><input name="np">
-  <textarea name="note"></textarea><input name="bot-field">
+  <textarea name="note"></textarea><input name="callback"><input name="bot-field">
 </form>
 
 <script>
@@ -272,18 +276,28 @@ async function saveOrder(order){
     total: order.total + " грн",
     pay: order.pay === "card" ? "Карткою онлайн (перевірте оплату в mono)" : "Накладений платіж",
     name: order.name, phone: order.phone, email: order.email,
-    city: order.city, np: order.np, note: order.note
+    city: order.city, np: order.np, note: order.note,
+    callback: order.callback ? "ТАК, передзвонити" : "ні"
   });
   const r = await fetch("/", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
   if (!r.ok) throw new Error("order not saved");
 }
-async function startPayment(order){
+/* Сервер рахує суму, записує замовлення в таблицю і (для картки) створює рахунок у mono */
+async function placeOrder(order){
   const r = await fetch("/.netlify/functions/create-invoice", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({orderId: order.id, email: order.email, items: order.items.map(i=>({id:i.id, qty:i.qty}))})
+    body: JSON.stringify({
+      orderId: order.id, pay: order.pay,
+      name: order.name, phone: order.phone, email: order.email,
+      city: order.city, np: order.np, note: order.note, callback: order.callback,
+      items: order.items.map(i=>({id:i.id, qty:i.qty}))
+    })
   });
-  if (!r.ok) throw new Error("invoice not created");
-  const data = await r.json();
+  if (!r.ok) throw new Error("order not placed");
+  return r.json();
+}
+async function startPayment(order){
+  const data = await placeOrder(order);
   try { sessionStorage.setItem("tts_invoice", data.invoiceId); } catch(e) {}
   location.href = data.pageUrl;
 }
@@ -383,6 +397,7 @@ $("form").addEventListener("submit", async e=>{
     id: newOrderId(),
     name:$("name").value.trim(), phone:$("phone").value.trim(), email:$("email").value.trim(),
     city:$("city").value.trim(), np:$("np").value.trim(), note:$("note").value.trim(),
+    callback: $("callback").checked,
     pay: document.querySelector('input[name=pay]:checked').value,
     items: BOOKS.filter(b=>cart[b.id]).map(b=>({id:b.id, book:b.num, level:b.level, qty:cart[b.id]})),
     total: c.total
@@ -390,8 +405,10 @@ $("form").addEventListener("submit", async e=>{
   const btn = $("submit"), label = btn.textContent;
   btn.disabled = true; btn.textContent = "Зачекайте…";
   try {
-    await saveOrder(order);
-    if (order.pay === "card"){ await startPayment(order); return; }
+    if (order.pay === "card"){ await saveOrder(order); await startPayment(order); return; }
+    /* Накладений платіж: достатньо, щоб замовлення дійшло хоч одним шляхом (лист або таблиця) */
+    const results = await Promise.allSettled([saveOrder(order), placeOrder(order)]);
+    if (!results.some(x => x.status === "fulfilled")) throw new Error("order not saved");
     $("okText").textContent = `Номер замовлення ${order.id}. Ми зв'яжемося з вами за номером ${order.phone}, щоб підтвердити замовлення на ${order.total} ₴.`;
     $("form").hidden = true; $("ok").hidden = false;
   } catch(err) {
