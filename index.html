@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>time to sudoku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout: тонка шапка з лого й Instagram, короткий кіноварний банер, компактні картки книжечок, набір, оформлення. Один світлий брендовий вигляд. */
+:root{
+  --cinnabar:#E8441A; --rose:#F7C3DC; --rose-deep:#E583B2; --rose-pale:#FBE2EE; --white:#FFFFFF;
+  --ink:#2A1610; --muted:#7A5A50; --tint:#FDF1F6; --hair:#F0D9E2;
+  --display:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--tint);color:var(--ink);font:400 17px/1.6 var(--display)}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.02;letter-spacing:-.025em;text-wrap:balance}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--cinnabar);outline-offset:3px}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.btn{display:inline-flex;align-items:center;justify-content:center;font:700 16px/1 var(--display);padding:16px 26px;border-radius:999px;border:0;cursor:pointer;text-decoration:none;background:var(--cinnabar);color:var(--white)}
+.btn:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.light{background:var(--white);color:var(--cinnabar)}
+.btn.ghost{background:transparent;color:var(--cinnabar);box-shadow:inset 0 0 0 2px var(--cinnabar)}
+
+/* шапка */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--white);border-bottom:1px solid var(--hair)}
+.bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font:800 17px/1 var(--display);color:var(--cinnabar);letter-spacing:-.01em}
+.brand img{width:44px;height:auto;display:block}
+.ig{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;color:var(--cinnabar)}
+.ig:hover{background:var(--tint)}
+.ig svg{width:26px;height:26px}
+
+/* банер */
+.hero{background:var(--tint);color:var(--ink)}
+.herobox{padding-block:clamp(36px,6vw,72px);display:grid;gap:14px;justify-items:start}
+.hero .wrap{padding-block:0}
+.hero h1{font-size:clamp(30px,8.4vw,96px);font-weight:900;color:var(--cinnabar)}
+.hero h1 span{color:var(--cinnabar)}
+.hero .title{display:flex;align-items:center;gap:clamp(8px,1.6vw,16px)}
+.hero .title h1{min-width:0}
+.hero .cat{width:clamp(52px,10vw,104px);flex:none;height:auto;display:block}
+.hero p{font-size:19px;max-width:34em;margin:clamp(10px,2vw,22px) 0 0;color:var(--muted)}
+
+/* обкладинка за макетами */
+.cover{container-type:inline-size;aspect-ratio:654/925;position:relative;width:100%;max-width:100%;background:var(--bg);color:var(--fg)}
+.cover .t{position:absolute;left:7cqw;top:7.8cqw;writing-mode:vertical-rl;transform:rotate(180deg);font:800 20cqw/1 var(--display);letter-spacing:-.01em}
+.cover .n{position:absolute;right:5.5cqw;top:6.5cqw;font:700 7.5cqw/1 var(--display)}
+.cover .l{position:absolute;left:0;right:0;bottom:6.5cqw;text-align:center;font:400 3.6cqw/1 var(--display)}
+
+/* книжечки */
+.books{padding-block:56px}
+h2{font-size:clamp(30px,4.6vw,44px);font-weight:800;color:var(--cinnabar);margin-bottom:24px}
+.products{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.prod{background:var(--white);border-radius:20px;padding:18px;display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:start}
+.prod .cover{box-shadow:0 10px 18px -12px rgba(42,22,16,.5)}
+.prod .info{display:grid;gap:8px;min-width:0}
+.prod h3{font-size:20px;font-weight:800}
+.specs{margin:0;padding:0;list-style:none;color:var(--muted);font-size:14px;line-height:1.45}
+.price{font:800 22px/1 var(--display);font-variant-numeric:tabular-nums}
+.addrow{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--hair);background:var(--white);color:var(--ink);font:600 18px/1 var(--display);cursor:pointer}
+.qty button:hover{border-color:var(--cinnabar)}
+.qty output{font:800 18px/1 var(--display);min-width:1.4em;text-align:center;font-variant-numeric:tabular-nums}
+.prod .btn{padding:11px 18px;font-size:15px}
+.added{grid-column:1/-1;color:var(--cinnabar);font-weight:500;font-size:14px;min-height:1.3em;margin:-6px 0 0}
+
+/* набір */
+.set{margin-top:16px;background:var(--rose);border-radius:20px;padding:20px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center}
+.fan{position:relative;width:150px;height:100px}
+.fan .cover{position:absolute;width:64px;top:8px;box-shadow:0 8px 14px -10px rgba(42,22,16,.5)}
+.fan .cover:nth-child(1){left:0;transform:rotate(-10deg)}
+.fan .cover:nth-child(2){left:42px;top:0;transform:rotate(-1deg)}
+.fan .cover:nth-child(3){left:84px;transform:rotate(9deg)}
+.set h3{font-size:24px;font-weight:800;color:var(--cinnabar)}
+.set p{margin:4px 0 0;font-size:15px}
+.set .buy{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end}
+.set .old{text-decoration:line-through;color:var(--muted);font-size:15px;display:block}
+.set .new{font:900 30px/1 var(--display);color:var(--cinnabar)}
+
+/* оформлення */
+.order{padding-block:8px 56px}
+.ordergrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:20px;align-items:start}
+.panel{background:var(--white);border-radius:20px;padding:24px;min-width:0}
+.panel h3{font-size:20px;font-weight:800;margin-bottom:14px}
+.cart ul{list-style:none;margin:0;padding:0}
+.cart li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair)}
+.cart li i{width:16px;height:22px;flex:none;background:var(--c)}
+.cart li span{flex:1;min-width:0}
+.cart li b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.cart li .rm{background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:4px 6px}
+.cart li b{min-width:4.5em;text-align:right}
+.qty.sm{gap:6px}
+.qty.sm button{width:30px;height:30px;font-size:16px}
+.qty.sm output{font-size:16px;min-width:1.4em}
+.cart li.disc{color:var(--cinnabar);font-weight:600}
+.cart li.disc i{background:none}
+.empty{color:var(--muted);margin:0}
+form{display:grid;gap:14px}
+.f{display:grid;gap:6px;font-weight:500;font-size:15px}
+.f input,.f textarea{font:inherit;color:var(--ink);background:var(--white);border:2px solid var(--hair);border-radius:12px;padding:11px 14px;width:100%}
+.f input:focus,.f textarea:focus{border-color:var(--cinnabar);outline:none}
+.f input[aria-invalid="true"]{border-color:var(--cinnabar)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+legend{font-weight:500;font-size:15px;margin-bottom:8px;padding:0}
+.pay{display:grid;gap:8px}
+.pay label{display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid var(--hair);border-radius:12px;cursor:pointer;font-weight:500}
+.pay label:has(input:checked){border-color:var(--cinnabar);background:var(--tint)}
+.pay input{accent-color:var(--cinnabar);width:18px;height:18px;margin:0}
+.pay small{display:block;color:var(--muted);font-weight:400;font-size:14px}
+.total{display:flex;justify-content:space-between;align-items:baseline;border-top:2px dashed var(--hair);padding-top:14px;font-weight:500}
+.total b{font:900 30px/1 var(--display);color:var(--cinnabar);font-variant-numeric:tabular-nums}
+.msg{font-size:15px;margin:0;min-height:1.2em;color:var(--cinnabar)}
+.ok{display:grid;gap:12px}
+.ok h3{color:var(--cinnabar)}
+.ok p{margin:0}
+
+.iglink{display:inline-flex;align-items:center;gap:8px;color:var(--cinnabar);font-weight:600;text-decoration:none;padding:8px 0}
+.iglink:hover{text-decoration:underline}
+.iglink svg{width:22px;height:22px}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding-block:22px;color:var(--muted);font-size:14px}
+
+@media (max-width:900px){
+  .products{grid-template-columns:1fr 1fr}
+}
+@media (max-width:720px){
+  .products,.ordergrid{grid-template-columns:1fr}
+  .row2{grid-template-columns:1fr}
+  .set{grid-template-columns:1fr;gap:14px}
+  .set .buy{justify-content:space-between}
+}
+</style>
+</head>
+<body>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="herobox">
+      <div class="title"><img class="cat" src="logo-flower.svg" alt="Котик з годинником, лого time to sudoku"><h1>time to <span>sudoku</span></h1></div>
+      <p>Ваш час для себе. По 100 судоку в кожній книжечці, від легкого до складного.</p>
+    </div>
+  </div>
+</section>
+
+<section class="books" id="books">
+  <div class="wrap">
+    <h2>книжечки</h2>
+    <div class="products" id="products"></div>
+
+    <div class="set">
+      <div class="fan" id="fan" aria-hidden="true"></div>
+      <div>
+        <h3>Набір із трьох рівнів</h3>
+        <p>Від легкої розминки до справжнього виклику. 300 судоку на всі настрої.</p>
+      </div>
+      <div class="buy">
+        <div><span class="old" id="setOld">1110 ₴</span><span class="new"><span id="setPrice">1000</span> ₴</span></div>
+        <button class="btn" type="button" id="addSet">Додати набір</button>
+      </div>
+    </div>
+    <p class="added" id="setAdded" aria-live="polite" style="margin-top:8px"></p>
+  </div>
+</section>
+
+<section class="order" id="order">
+  <div class="wrap">
+    <h2>оформлення</h2>
+    <div class="ordergrid">
+      <div class="panel cart">
+        <h3>Ваше замовлення</h3>
+        <ul id="cartList"></ul>
+        <p class="empty" id="empty">Поки порожньо. Додайте книжечку або набір.</p>
+      </div>
+
+      <div class="panel">
+        <form id="form" novalidate>
+          <h3>Доставка й оплата</h3>
+          <label class="f" for="name">Ім'я та прізвище<input type="text" id="name" autocomplete="name"></label>
+          <div class="row2">
+            <label class="f" for="phone">Телефон<input type="tel" id="phone" autocomplete="tel" placeholder="+380"></label>
+            <label class="f" for="email">Email для чека<input type="email" id="email" autocomplete="email"></label>
+          </div>
+          <div class="row2">
+            <label class="f" for="city">Місто<input type="text" id="city" autocomplete="address-level2"></label>
+            <label class="f" for="np">Відділення Нової пошти<input type="text" id="np" inputmode="numeric" placeholder="№"></label>
+          </div>
+          <label class="f" for="note">Коментар (необов'язково)<textarea id="note" rows="2"></textarea></label>
+          <fieldset class="pay">
+            <legend>Спосіб оплати</legend>
+            <label><input type="radio" name="pay" id="payCard" value="card" checked><span>Карткою онлайн<small>Apple Pay, Google Pay або карта</small></span></label>
+            <label><input type="radio" name="pay" id="payCod" value="cod"><span>Накладений платіж<small>Оплата при отриманні на пошті</small></span></label>
+          </fieldset>
+          <div class="total"><span>Разом</span><b><span id="total">0</span> ₴</b></div>
+          <p class="msg" id="msg" role="alert"></p>
+          <button class="btn" type="submit" id="submit">Оплатити</button>
+        </form>
+        <div class="ok" id="ok" hidden>
+          <h3>Дякуємо за замовлення!</h3>
+          <p id="okText"></p>
+          <button class="btn ghost" type="button" id="again">Нове замовлення</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>time to sudoku · Київ</span>
+    <a class="iglink" id="igLink" href="https://www.instagram.com/" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+      Instagram
+    </a>
+  </div>
+</footer>
+
+<!-- Прихована форма, щоб Netlify знайшов форму замовлень. Не видаляйте. -->
+<form name="order" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input name="order_id"><input name="items"><input name="total"><input name="pay">
+  <input name="name"><input name="phone"><input name="email"><input name="city"><input name="np">
+  <textarea name="note"></textarea><input name="bot-field">
+</form>
+
+<script>
+/* ====== НАЛАШТУВАННЯ ====== */
+const INSTAGRAM = "timetosudoku"; // нік в Instagram без @
+const PRICE = 370;      // одна книжечка
+const SET_PRICE = 1000; // усі три разом
+const SPECS = ["100 судоку", "Формат А6", "Мʼяка обкладинка"];
+const BOOKS = [
+  {id:"n1", num:"№1", level:"складний", bg:"#DA4A1F", fg:"#D9E08F"},
+  {id:"n2", num:"№2", level:"легкий",   bg:"#BFE47C", fg:"#685BB3"},
+  {id:"n3", num:"№3", level:"середній", bg:"#7263A9", fg:"#F4AACC"}
+];
+/* ====== ЗАМОВЛЕННЯ Й ОПЛАТА ====== */
+/* 1) Замовлення зберігається у Netlify Forms (приходить вам на пошту).
+   2) Для оплати карткою серверна функція створює рахунок у plata by mono і перекидає покупця на оплату. */
+function newOrderId(){
+  const d = new Date().toISOString().slice(2,10).replace(/-/g,"");
+  return "TTS-" + d + "-" + Math.random().toString(36).slice(2,6).toUpperCase();
+}
+async function saveOrder(order){
+  const body = new URLSearchParams({
+    "form-name": "order",
+    order_id: order.id,
+    items: order.items.map(i=>`Судоку ${i.book} (${i.level}) × ${i.qty}`).join(", "),
+    total: order.total + " грн",
+    pay: order.pay === "card" ? "Карткою онлайн (перевірте оплату в mono)" : "Накладений платіж",
+    name: order.name, phone: order.phone, email: order.email,
+    city: order.city, np: order.np, note: order.note
+  });
+  const r = await fetch("/", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body});
+  if (!r.ok) throw new Error("order not saved");
+}
+async function startPayment(order){
+  const r = await fetch("/.netlify/functions/create-invoice", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({orderId: order.id, email: order.email, items: order.items.map(i=>({id:i.id, qty:i.qty}))})
+  });
+  if (!r.ok) throw new Error("invoice not created");
+  const data = await r.json();
+  try { sessionStorage.setItem("tts_invoice", data.invoiceId); } catch(e) {}
+  location.href = data.pageUrl;
+}
+
+const $ = id => document.getElementById(id);
+$("igLink").href = "https://www.instagram.com/" + INSTAGRAM + "/";
+const cover = b => `<div class="cover" style="--bg:${b.bg};--fg:${b.fg}"><span class="t">СУДОКУ</span><span class="n">${b.num}</span><span class="l">${b.level}</span></div>`;
+const cap = s => s[0].toUpperCase() + s.slice(1);
+
+$("fan").innerHTML = [BOOKS[1],BOOKS[2],BOOKS[0]].map(cover).join("");
+$("setOld").textContent = PRICE*BOOKS.length + " ₴";
+$("setPrice").textContent = SET_PRICE;
+
+const cart = {};
+BOOKS.forEach(b=>{
+  let q = 1;
+  const el = document.createElement("article");
+  el.className = "prod";
+  el.innerHTML = `${cover(b)}
+    <div class="info">
+      <h3>Судоку ${b.num}</h3>
+      <ul class="specs"><li>${cap(b.level)} рівень</li>${SPECS.map(s=>`<li>${s}</li>`).join("")}</ul>
+      <div class="price">${PRICE} ₴</div>
+    </div>
+    <div class="addrow">
+      <div class="qty"><button type="button" aria-label="Менше">−</button><output>1</output><button type="button" aria-label="Більше">+</button></div>
+      <button class="btn" type="button">Додати</button>
+    </div>
+    <p class="added" aria-live="polite"></p>`;
+  const [minus, plus] = el.querySelectorAll(".qty button");
+  const out = el.querySelector("output");
+  minus.onclick = ()=>{ if(q>1){ q--; out.textContent = q; } };
+  plus.onclick  = ()=>{ if(q<20){ q++; out.textContent = q; } };
+  el.querySelector(".addrow .btn").onclick = ()=>{
+    cart[b.id] = (cart[b.id]||0) + q;
+    el.querySelector(".added").textContent = `У замовленні: ${cart[b.id]} шт.`;
+    q = 1; out.textContent = 1;
+    renderCart();
+  };
+  $("products").appendChild(el);
+});
+$("addSet").onclick = ()=>{
+  BOOKS.forEach(b=> cart[b.id] = (cart[b.id]||0) + 1);
+  $("setAdded").textContent = "Набір додано до замовлення";
+  renderCart();
+};
+
+/* Кожна трійка №1+№2+№3 рахується за ціною набору */
+function calc(){
+  const counts = BOOKS.map(b=>cart[b.id]||0);
+  const sets = Math.min(...counts);
+  const books = counts.reduce((a,c)=>a+c,0);
+  const full = books*PRICE;
+  const discount = sets*(PRICE*BOOKS.length - SET_PRICE);
+  return {sets, books, full, discount, total: full - discount};
+}
+function renderCart(){
+  const ul = $("cartList"); ul.innerHTML = "";
+  BOOKS.forEach(b=>{
+    const n = cart[b.id]; if(!n) return;
+    const li = document.createElement("li");
+    li.innerHTML = `<i style="--c:${b.bg}"></i><span>Судоку ${b.num}, ${b.level}</span>
+      <div class="qty sm"><button type="button" aria-label="Менше Судоку ${b.num}">−</button><output>${n}</output><button type="button" aria-label="Більше Судоку ${b.num}">+</button></div>
+      <b>${n*PRICE} ₴</b><button type="button" class="rm" aria-label="Прибрати Судоку ${b.num}">×</button>`;
+    const [dec, inc] = li.querySelectorAll(".qty button");
+    dec.onclick = ()=>{ if (cart[b.id] > 1) cart[b.id]--; else delete cart[b.id]; renderCart(); };
+    inc.onclick = ()=>{ if (cart[b.id] < 20) cart[b.id]++; renderCart(); };
+    li.querySelector(".rm").onclick = ()=>{ delete cart[b.id]; renderCart(); };
+    ul.appendChild(li);
+  });
+  const c = calc();
+  if (c.discount){
+    const li = document.createElement("li");
+    li.className = "disc";
+    li.innerHTML = `<i></i><span>Ціна набору${c.sets>1 ? " × "+c.sets : ""}</span><b>−${c.discount} ₴</b>`;
+    ul.appendChild(li);
+  }
+  $("empty").hidden = c.books > 0;
+  $("total").textContent = c.total;
+}
+renderCart();
+
+$("form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const fields = {name:"ім'я", phone:"телефон", city:"місто", np:"відділення"};
+  const miss = [];
+  for (const id in fields){
+    const empty = !$(id).value.trim();
+    $(id).setAttribute("aria-invalid", empty);
+    if (empty) miss.push(fields[id]);
+  }
+  const c = calc();
+  if (!c.books) miss.unshift("хоча б одну книжечку");
+  if (miss.length){ $("msg").textContent = "Додайте " + miss.join(", ") + "."; return; }
+  $("msg").textContent = "";
+  const order = {
+    id: newOrderId(),
+    name:$("name").value.trim(), phone:$("phone").value.trim(), email:$("email").value.trim(),
+    city:$("city").value.trim(), np:$("np").value.trim(), note:$("note").value.trim(),
+    pay: document.querySelector('input[name=pay]:checked').value,
+    items: BOOKS.filter(b=>cart[b.id]).map(b=>({id:b.id, book:b.num, level:b.level, qty:cart[b.id]})),
+    total: c.total
+  };
+  const btn = $("submit"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Зачекайте…";
+  try {
+    await saveOrder(order);
+    if (order.pay === "card"){ await startPayment(order); return; }
+    $("okText").textContent = `Номер замовлення ${order.id}. Ми зв'яжемося з вами за номером ${order.phone}, щоб підтвердити замовлення на ${order.total} ₴.`;
+    $("form").hidden = true; $("ok").hidden = false;
+  } catch(err) {
+    $("msg").textContent = "Не вдалося надіслати замовлення. Спробуйте ще раз або напишіть нам в Instagram.";
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+});
+document.querySelectorAll('input[name=pay]').forEach(r=>r.addEventListener("change",()=>{
+  $("submit").textContent = r.value === "card" && r.checked ? "Оплатити" : "Замовити";
+}));
+$("again").onclick = ()=>{
+  for (const k in cart) delete cart[k];
+  renderCart(); $("form").reset(); $("ok").hidden = true; $("form").hidden = false;
+};
+</script>
+</body>
+</html>

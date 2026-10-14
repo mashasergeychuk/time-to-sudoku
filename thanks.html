@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>time to sudoku · оплата</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--cinnabar:#E8441A;--ink:#2A1610;--muted:#7A5A50;--tint:#FDF1F6;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--tint);color:var(--ink);font:400 17px/1.6 "Onest",system-ui,sans-serif;padding:24px max(20px,env(safe-area-inset-left,0px))}
+main{background:var(--white);border-radius:24px;padding:36px 28px;max-width:480px;width:100%;text-align:center;display:grid;gap:14px;justify-items:center}
+img{width:96px;height:auto}
+h1{margin:0;font:900 30px/1.1 "Onest",sans-serif;color:var(--cinnabar);letter-spacing:-.02em}
+p{margin:0;color:var(--muted)}
+a.btn{display:inline-flex;font:700 16px/1 "Onest",sans-serif;padding:16px 26px;border-radius:999px;background:var(--cinnabar);color:#fff;text-decoration:none;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+  <img src="logo-flower.svg" alt="time to sudoku">
+  <h1 id="title">Перевіряємо оплату…</h1>
+  <p id="text">Це займе кілька секунд.</p>
+  <p id="order"></p>
+  <a class="btn" id="btn" href="/">На головну</a>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const orderId = new URLSearchParams(location.search).get("order");
+if (orderId) $("order").textContent = "Номер замовлення: " + orderId;
+let invoiceId = null;
+try { invoiceId = sessionStorage.getItem("tts_invoice"); } catch(e) {}
+
+function show(title, text, btn, href){
+  $("title").textContent = title; $("text").textContent = text;
+  if (btn){ $("btn").textContent = btn; $("btn").href = href || "/"; }
+}
+
+async function check(attempt){
+  if (!invoiceId){
+    show("Дякуємо за замовлення!", "Якщо оплата пройшла, ми скоро зв'яжемося з вами щодо доставки.");
+    return;
+  }
+  try {
+    const r = await fetch("/.netlify/functions/invoice-status?invoiceId=" + encodeURIComponent(invoiceId));
+    const { status } = await r.json();
+    if (status === "success"){
+      try { sessionStorage.removeItem("tts_invoice"); } catch(e) {}
+      show("Оплату отримано!", "Дякуємо! Ми надішлемо книжечки Новою поштою і повідомимо номер накладної.");
+    } else if (status === "failure" || status === "expired" || status === "reversed"){
+      show("Оплата не пройшла", "Гроші не списано. Спробуйте ще раз або оберіть накладений платіж.", "Повернутися до замовлення", "/#order");
+    } else if (attempt < 6){
+      setTimeout(()=>check(attempt+1), 2500);
+    } else {
+      show("Оплата обробляється", "Банк ще підтверджує платіж. Ми побачимо його і зв'яжемося з вами.");
+    }
+  } catch(e){
+    show("Дякуємо за замовлення!", "Не вдалося перевірити статус оплати, але ми побачимо платіж і зв'яжемося з вами.");
+  }
+}
+check(0);
+</script>
+</body>
+</html>
