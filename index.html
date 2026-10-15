@@ -113,6 +113,15 @@ form{display:grid;gap:14px}
 .f input:focus,.f textarea:focus{border-color:var(--cinnabar);outline:none}
 .f input[aria-invalid="true"]{border-color:var(--cinnabar)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.delivery{display:grid;gap:12px}
+.seg{display:flex;gap:8px}
+.seg label{flex:1;display:flex;gap:10px;align-items:center;padding:11px 14px;border:2px solid var(--hair);border-radius:12px;cursor:pointer;font-weight:500}
+.seg label:has(input:checked){border-color:var(--cinnabar);background:var(--tint)}
+.seg input{accent-color:var(--cinnabar);width:18px;height:18px;margin:0}
+.ac{position:relative}
+.ac-list{position:absolute;left:0;right:0;top:100%;z-index:10;margin:4px 0 0;padding:4px;list-style:none;background:var(--white);border:2px solid var(--hair);border-radius:12px;max-height:280px;overflow:auto;box-shadow:0 14px 28px -14px rgba(42,22,16,.4)}
+.ac-list li{padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:400;font-size:15px;line-height:1.35}
+.ac-list li[aria-selected="true"],.ac-list li:hover{background:var(--tint)}
 fieldset{border:0;padding:0;margin:0;min-width:0}
 legend{font-weight:500;font-size:15px;margin-bottom:8px;padding:0}
 .callme{display:flex;gap:12px;align-items:center;padding:12px 14px;border:2px solid var(--hair);border-radius:12px;cursor:pointer;font-weight:500;font-size:15px}
@@ -206,10 +215,23 @@ footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1
             <label class="f" for="phone">Телефон<input type="tel" id="phone" autocomplete="tel" placeholder="+380"></label>
             <label class="f" for="email">Email для чека<input type="email" id="email" autocomplete="email"></label>
           </div>
-          <div class="row2">
-            <label class="f" for="city">Місто<input type="text" id="city" autocomplete="address-level2"></label>
-            <label class="f" for="np">Відділення або поштомат НП<input type="text" id="np" placeholder="№ відділення або поштомату"></label>
-          </div>
+          <fieldset class="delivery">
+            <legend>Доставка Новою поштою</legend>
+            <div class="seg">
+              <label><input type="radio" name="npkind" id="kindBranch" value="branch" checked><span>Відділення</span></label>
+              <label><input type="radio" name="npkind" id="kindLocker" value="locker"><span>Поштомат</span></label>
+            </div>
+            <div class="f ac">
+              <label for="city">Місто</label>
+              <input type="text" id="city" autocomplete="off" placeholder="Почніть вводити назву" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="cityList">
+              <ul class="ac-list" id="cityList" role="listbox" hidden></ul>
+            </div>
+            <div class="f ac">
+              <label for="np" id="npLabel">Відділення</label>
+              <input type="text" id="np" autocomplete="off" placeholder="Номер або вулиця" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="npList">
+              <ul class="ac-list" id="npList" role="listbox" hidden></ul>
+            </div>
+          </fieldset>
           <label class="f" for="note">Коментар (необов'язково)<textarea id="note" rows="2"></textarea></label>
           <label class="callme" for="callback"><input type="checkbox" id="callback"><span>Зателефонуйте мені, щоб уточнити замовлення</span></label>
           <fieldset class="pay">
@@ -303,6 +325,75 @@ async function startPayment(order){
 }
 
 const $ = id => document.getElementById(id);
+
+/* ====== НОВА ПОШТА: підказки міст і відділень ======
+   Якщо сервіс НП недоступний, поля працюють як звичайний текст. */
+const NP_URL = "/.netlify/functions/np";
+let cityRef = "", npPicked = false;
+const npKind = () => document.querySelector('input[name=npkind]:checked').value;
+
+function setupSuggest(input, list, load, onPick){
+  let items = [], active = -1, seq = 0, timer;
+  function close(){ list.hidden = true; input.setAttribute("aria-expanded","false"); input.removeAttribute("aria-activedescendant"); active = -1; }
+  function render(){
+    list.innerHTML = "";
+    items.forEach((it, i) => {
+      const li = document.createElement("li");
+      li.id = list.id + "-" + i; li.setAttribute("role","option");
+      li.setAttribute("aria-selected", String(i === active));
+      li.textContent = it.label;
+      li.addEventListener("mousedown", e => { e.preventDefault(); pick(i); });
+      list.appendChild(li);
+    });
+    list.hidden = !items.length;
+    input.setAttribute("aria-expanded", String(items.length > 0));
+    if (active >= 0){ input.setAttribute("aria-activedescendant", list.id + "-" + active); list.children[active].scrollIntoView({block:"nearest"}); }
+  }
+  function pick(i){ const it = items[i]; if (!it) return; input.value = it.value; onPick(it); close(); }
+  function refresh(){
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try { const res = await load(input.value.trim()); if (my !== seq) return; items = res || []; active = -1; render(); }
+      catch(e){ if (my === seq){ items = []; close(); } }
+    }, 250);
+  }
+  input.addEventListener("input", () => { onPick(null); refresh(); });
+  input.addEventListener("focus", refresh);
+  input.addEventListener("blur", () => setTimeout(close, 120));
+  input.addEventListener("keydown", e => {
+    if (list.hidden) return;
+    if (e.key === "ArrowDown"){ e.preventDefault(); active = Math.min(active + 1, items.length - 1); render(); }
+    else if (e.key === "ArrowUp"){ e.preventDefault(); active = Math.max(active - 1, 0); render(); }
+    else if (e.key === "Enter" && active >= 0){ e.preventDefault(); pick(active); }
+    else if (e.key === "Escape"){ close(); }
+  });
+  return { refresh };
+}
+async function npFetch(params){
+  const r = await fetch(NP_URL + "?" + new URLSearchParams(params));
+  if (!r.ok) throw new Error("np");
+  return r.json();
+}
+setupSuggest($("city"), $("cityList"),
+  q => q.length < 2 ? [] : npFetch({type:"cities", q}),
+  it => {
+    const ref = it ? it.ref : "";
+    if (ref !== cityRef){ cityRef = ref; if (it){ $("np").value = ""; npPicked = false; } }
+  });
+const npSuggest = setupSuggest($("np"), $("npList"),
+  q => cityRef ? npFetch({type:"warehouses", city: cityRef, kind: npKind(), q}) : [],
+  it => { npPicked = !!it; });
+document.querySelectorAll('input[name=npkind]').forEach(r => r.addEventListener("change", () => {
+  const locker = npKind() === "locker";
+  $("npLabel").textContent = locker ? "Поштомат" : "Відділення";
+  $("np").value = ""; npPicked = false;
+}));
+function npText(){
+  const v = $("np").value.trim();
+  if (!v || npPicked) return v;
+  return (npKind() === "locker" ? "Поштомат: " : "Відділення: ") + v;
+}
 $("igLink").href = "https://www.instagram.com/" + INSTAGRAM + "/";
 const cover = b => `<div class="cover" style="--bg:${b.bg};--fg:${b.fg}"><span class="t">СУДОКУ</span><span class="n">${b.num}</span><span class="l">${b.level}</span></div>`;
 const cap = s => s[0].toUpperCase() + s.slice(1);
@@ -382,7 +473,7 @@ renderCart();
 
 $("form").addEventListener("submit", async e=>{
   e.preventDefault();
-  const fields = {name:"ім'я", phone:"телефон", city:"місто", np:"відділення або поштомат"};
+  const fields = {name:"ім'я", phone:"телефон", city:"місто", np: npKind() === "locker" ? "поштомат" : "відділення"};
   const miss = [];
   for (const id in fields){
     const empty = !$(id).value.trim();
@@ -396,7 +487,7 @@ $("form").addEventListener("submit", async e=>{
   const order = {
     id: newOrderId(),
     name:$("name").value.trim(), phone:$("phone").value.trim(), email:$("email").value.trim(),
-    city:$("city").value.trim(), np:$("np").value.trim(), note:$("note").value.trim(),
+    city:$("city").value.trim(), np:npText(), note:$("note").value.trim(),
     callback: $("callback").checked,
     pay: document.querySelector('input[name=pay]:checked').value,
     items: BOOKS.filter(b=>cart[b.id]).map(b=>({id:b.id, book:b.num, level:b.level, qty:cart[b.id]})),
@@ -422,7 +513,7 @@ document.querySelectorAll('input[name=pay]').forEach(r=>r.addEventListener("chan
 }));
 $("again").onclick = ()=>{
   for (const k in cart) delete cart[k];
-  renderCart(); $("form").reset(); $("ok").hidden = true; $("form").hidden = false;
+  renderCart(); $("form").reset(); cityRef = ""; npPicked = false; $("npLabel").textContent = "Відділення"; $("ok").hidden = true; $("form").hidden = false;
 };
 </script>
 </body>
