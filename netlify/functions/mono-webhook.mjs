@@ -4,6 +4,7 @@
 
 import crypto from "node:crypto";
 import { postToSheet } from "../lib/sheet.mjs";
+import { sendTelegram } from "../lib/tg.mjs";
 
 let cachedKey = null;
 
@@ -66,5 +67,11 @@ export default async (req) => {
     console.error("sheet status failed", e);
     return new Response("sheet error", { status: 500 }); // mono спробує ще раз
   }
+
+  const sum = data.finalAmount ?? data.amount;
+  const sumText = typeof sum === "number" ? ` — ${sum / 100} грн` : "";
+  const icon = { success: "✅", failure: "❌", expired: "⌛", reversed: "↩️" }[data.status];
+  await sendTelegram(`${icon} ${status[0].toUpperCase() + status.slice(1)}: ${data.reference}${sumText}`);
+
   return new Response("ok");
 };

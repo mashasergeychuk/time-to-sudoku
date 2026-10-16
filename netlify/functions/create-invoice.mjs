@@ -5,6 +5,7 @@
 // Змінні середовища: MONO_TOKEN, SHEET_URL, SHEET_SECRET.
 
 import { postToSheet } from "../lib/sheet.mjs";
+import { sendTelegram } from "../lib/tg.mjs";
 
 const PRICE = 370;      // грн за одну книжечку
 const SET_PRICE = 1000; // грн за набір №1 + №2 + №3
@@ -80,6 +81,22 @@ export default async (req) => {
   } catch (e) {
     console.error("sheet add failed", e);
   }
+
+  // Сповіщення в Telegram
+  const lines = [
+    `🧩 Нове замовлення ${orderId}`,
+    "",
+    ...basketOrder.map((i) => `• ${i.name} × ${i.qty}`),
+    `Сума: ${amount / 100} грн`,
+    `Оплата: ${pay === "card" ? "картка онлайн (чекаємо оплату)" : "накладений платіж"}`,
+    "",
+    `${clean(body.name)}, ${clean(body.phone, 40)}`,
+    `${clean(body.city)}`,
+    `${clean(body.np, 200)}`,
+  ];
+  if (body.note) lines.push(`Коментар: ${clean(body.note, 500)}`);
+  if (body.callback) lines.push("📞 Просить передзвонити");
+  await sendTelegram(lines.join("\n"));
 
   if (pay === "cod") return json(200, { ok: true });
 
