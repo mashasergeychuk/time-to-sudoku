@@ -42,7 +42,6 @@ a{color:inherit}
 .wrap{max-width:1040px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
 .btn{display:inline-flex;align-items:center;justify-content:center;font:700 16px/1 var(--display);padding:16px 26px;border-radius:999px;border:0;cursor:pointer;text-decoration:none;background:var(--cinnabar);color:var(--white)}
 .btn:hover{filter:brightness(1.06)}
-.btn:disabled{opacity:.6;cursor:wait}
 .btn.light{background:var(--white);color:var(--cinnabar)}
 .btn.ghost{background:transparent;color:var(--cinnabar);box-shadow:inset 0 0 0 2px var(--cinnabar)}
 
@@ -88,6 +87,12 @@ h2{font-size:clamp(30px,4.6vw,44px);font-weight:800;color:var(--cinnabar);margin
 .qty button:hover{border-color:var(--cinnabar)}
 .qty output{font:800 18px/1 var(--display);min-width:1.4em;text-align:center;font-variant-numeric:tabular-nums}
 .prod .btn{padding:11px 18px;font-size:15px}
+.prod .cv{position:relative}
+.prod.soldout .cover{filter:grayscale(.6);opacity:.55}
+.prod .badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);background:var(--ink);color:var(--white);font:700 11px/1.15 var(--display);padding:5px 7px;border-radius:6px;text-align:center;width:max-content;max-width:110px}
+.prod.soldout .price{color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.qty button:disabled{opacity:.4;cursor:not-allowed}
 .added{grid-column:1/-1;color:var(--cinnabar);font-weight:500;font-size:14px;min-height:1.3em;margin:-6px 0 0}
 
 /* набір */
@@ -292,10 +297,11 @@ const INSTAGRAM = "timetosudoku"; // нік в Instagram без @
 const PRICE = 370;      // одна книжечка
 const SET_PRICE = 1000; // усі три разом
 const SPECS = ["100 судоку", "QR-код з відповідями", "Формат А6", "Мʼяка обкладинка"];
+/* inStock: true — є в наявності, false — немає (книжечку не можна замовити) */
 const BOOKS = [
-  {id:"n1", num:"№1", level:"складний", bg:"#DA4A1F", fg:"#D9E08F"},
-  {id:"n2", num:"№2", level:"легкий",   bg:"#BFE47C", fg:"#685BB3"},
-  {id:"n3", num:"№3", level:"середній", bg:"#7263A9", fg:"#F4AACC"}
+  {id:"n1", num:"№1", level:"складний", bg:"#DA4A1F", fg:"#D9E08F", inStock: false},
+  {id:"n2", num:"№2", level:"легкий",   bg:"#BFE47C", fg:"#685BB3", inStock: true},
+  {id:"n3", num:"№3", level:"середній", bg:"#7263A9", fg:"#F4AACC", inStock: true}
 ];
 /* ====== ЗАМОВЛЕННЯ Й ОПЛАТА ====== */
 /* 1) Замовлення зберігається у Netlify Forms (приходить вам на пошту).
@@ -420,8 +426,8 @@ const cart = {};
 BOOKS.forEach(b=>{
   let q = 1;
   const el = document.createElement("article");
-  el.className = "prod";
-  el.innerHTML = `${cover(b)}
+  el.className = "prod" + (b.inStock ? "" : " soldout");
+  el.innerHTML = `<div class="cv">${cover(b)}${b.inStock ? "" : '<span class="badge">Немає в наявності</span>'}</div>
     <div class="info">
       <h3>Судоку ${b.num}</h3>
       <ul class="specs"><li>${cap(b.level)} рівень</li>${SPECS.map(s=>`<li>${s}</li>`).join("")}</ul>
@@ -432,6 +438,10 @@ BOOKS.forEach(b=>{
       <button class="btn" type="button">Додати</button>
     </div>
     <p class="added" aria-live="polite"></p>`;
+  if (!b.inStock){
+    el.querySelectorAll(".addrow button").forEach(x => x.disabled = true);
+    el.querySelector(".addrow .btn").textContent = "Скоро буде";
+  }
   const [minus, plus] = el.querySelectorAll(".qty button");
   const out = el.querySelector("output");
   minus.onclick = ()=>{ if(q>1){ q--; out.textContent = q; } };
@@ -444,7 +454,13 @@ BOOKS.forEach(b=>{
   };
   $("products").appendChild(el);
 });
+const setAvailable = BOOKS.every(b => b.inStock);
+if (!setAvailable){
+  $("addSet").disabled = true;
+  $("addSet").textContent = "Тимчасово недоступний";
+}
 $("addSet").onclick = ()=>{
+  if (!setAvailable) return;
   BOOKS.forEach(b=> cart[b.id] = (cart[b.id]||0) + 1);
   $("setAdded").textContent = "Набір додано до замовлення";
   renderCart();
